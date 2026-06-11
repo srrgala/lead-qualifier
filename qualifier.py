@@ -1,7 +1,6 @@
 from __future__ import annotations
 import json
 import re
-import os
 from typing import Any
 from anthropic import AsyncAnthropic
 from models import Message
@@ -108,7 +107,7 @@ LÓGICA DE CUALIFICACIÓN — evalúa en este orden ESTRICTO:
    "no"       → exclusión clara o tema sin relación con el negocio
    "pendiente"→ ambigüedad genuina → genera UNA pregunta de clarificación
 
-   Límite Fit: máximo 2 intentos. Consulta intentos_clarificacion_previos en el contexto.
+   Límite Fit: máximo 2 intentos. Consulta intentos_clarificacion_fit_previos en el contexto.
    Si el Fit sigue "pendiente" tras el segundo intento → fuera_de_alcance, subtipo "no_aclarado".
 
 2. AUTHORITY (solo cuando Fit = "si"):
@@ -249,4 +248,7 @@ async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
         async for chunk in stream.text_stream:
             full_text += chunk
 
-    return json.loads(_strip_json(full_text))
+    result = json.loads(_strip_json(full_text))
+    if "reply" not in result:
+        raise ValueError(f"LLM response missing 'reply' field: {full_text[:200]}")
+    return result

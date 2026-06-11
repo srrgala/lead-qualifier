@@ -1,5 +1,4 @@
 from __future__ import annotations
-import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
