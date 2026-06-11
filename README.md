@@ -17,15 +17,22 @@ pip install -r requirements.txt
 cp .env.example .env   # añade tu ANTHROPIC_API_KEY
 ```
 
-## Arranque
+## Arranque local
 
 ```bash
 uvicorn main:app --port 8001 --reload
 ```
 
-Abre `http://localhost:8001` en el navegador — el frontend está servido por el mismo proceso.
+Abre `http://localhost:8001` — frontend y backend servidos por el mismo proceso.
 
-No hay servidor separado ni paso de build. Un solo comando arranca todo.
+## Deploy en Render
+
+1. Conecta el repo en [render.com](https://render.com) → New Web Service
+2. Render detecta `render.yaml` automáticamente
+3. Añade la variable de entorno `ANTHROPIC_API_KEY` en el dashboard (Environment → Add variable)
+4. Deploy
+
+El `render.yaml` ya configura el comando correcto (`--host 0.0.0.0 --port $PORT`). No uses `--port 8001` en producción — Render asigna su propio puerto vía `$PORT`.
 
 ## Endpoints
 
