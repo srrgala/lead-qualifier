@@ -1,6 +1,8 @@
 from __future__ import annotations
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from models import QualifyRequest
 from qualifier import pre_filter, qualify_lead
@@ -8,6 +10,12 @@ from qualifier import pre_filter, qualify_lead
 load_dotenv()
 
 app = FastAPI(title="C4 — Lead Qualifier", version="1.0.0")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+def index():
+    return FileResponse("static/index.html")
 
 
 @app.get("/health")

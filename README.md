@@ -6,6 +6,7 @@ Hermano de [Yema](../yema) (generador de briefs). Portfolio técnico #3.
 ## Stack
 
 - **FastAPI** · **Pydantic v2** · **anthropic SDK** (streaming)
+- Frontend: vanilla HTML/CSS/JS (servido por el mismo proceso FastAPI)
 - Modelo: `claude-sonnet-4-6`
 - Puerto: `8001`
 
@@ -21,6 +22,10 @@ cp .env.example .env   # añade tu ANTHROPIC_API_KEY
 ```bash
 uvicorn main:app --port 8001 --reload
 ```
+
+Abre `http://localhost:8001` en el navegador — el frontend está servido por el mismo proceso.
+
+No hay servidor separado ni paso de build. Un solo comando arranca todo.
 
 ## Endpoints
 
