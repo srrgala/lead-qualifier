@@ -1,255 +1,404 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>C4 — Cualificador de leads</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cala</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Sora:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --arena: #FDF8F2;
+    --barro: #4C2E2E;
+    --barro-elevado: #5C3B35;
+    --barro-panel: #663F38;
+    --terracota: #C28654;
+    --salvia: #AFB587;
+    --fuera: #8A7A72;
+    --linea: rgba(253, 248, 242, 0.08);
+    --texto-muted: rgba(253, 248, 242, 0.65);
+  }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
+  * { box-sizing: border-box; }
 
-    /* ── Layout ─────────────────────────────────────────── */
-    #app {
-      width: 100%;
-      max-width: 680px;
-      display: flex;
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--barro);
+    color: var(--arena);
+    font-family: 'Sora', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .wordmark {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  .wordmark .punto { color: var(--terracota); }
+
+  .nav-link {
+    font-size: 13px;
+    color: var(--texto-muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .nav-link:hover { color: var(--arena); border-color: var(--terracota); }
+
+  .layout {
+    flex: 1;
+    width: 100%;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 48px 40px;
+    display: flex;
+    gap: 56px;
+    align-items: center;
+  }
+  .hero { flex: 1.05; min-width: 0; }
+  .chat-panel { flex: 1; min-width: 0; }
+
+  /* --- Indicador de fase --- */
+  .fases {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .fase {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: clamp(52px, 8vw, 108px);
+    line-height: 1.0;
+    letter-spacing: -0.01em;
+    color: rgba(253, 248, 242, 0.14);
+    transition: color 0.35s ease;
+    cursor: default;
+  }
+  .fase.activa { color: var(--terracota); }
+  .fase.completada { color: rgba(253, 248, 242, 0.4); }
+  .fase.activa.nivel-templado { color: var(--salvia); }
+  .fase.activa.nivel-fuera { color: var(--fuera); }
+
+  .intro {
+    margin: 28px 0 0;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--texto-muted);
+    max-width: 40ch;
+  }
+
+  /* --- Panel de chat --- */
+  .chat-panel {
+    background: var(--barro-panel);
+    border: 1px solid var(--linea);
+    border-radius: 20px;
+    padding: 24px;
+    min-height: 460px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .msg {
+    max-width: 85%;
+    padding: 13px 17px;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .msg.cala {
+    align-self: flex-start;
+    background: var(--barro-elevado);
+    border-left: 3px solid rgba(253, 248, 242, 0.15);
+    border-radius: 4px 14px 14px 14px;
+    transition: border-color 0.3s ease;
+  }
+  .msg.cala.nivel-caliente { border-left-color: var(--terracota); }
+  .msg.cala.nivel-templado { border-left-color: var(--salvia); }
+  .msg.cala.nivel-fuera    { border-left-color: var(--fuera); }
+
+  .msg.user {
+    align-self: flex-end;
+    background: transparent;
+    border: 1px solid rgba(253, 248, 242, 0.18);
+    border-radius: 14px 4px 14px 14px;
+    color: var(--arena);
+  }
+
+  .msg.error {
+    align-self: flex-start;
+    background: var(--barro-elevado);
+    border-left: 3px solid #e05c5c;
+    border-radius: 4px 14px 14px 14px;
+    color: #f0a0a0;
+    font-size: 14px;
+  }
+
+  /* Etiqueta textual de nivel — accesibilidad para daltonismo (#8) */
+  .nivel-label {
+    display: block;
+    margin-top: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+
+  /* Indicador de escritura (#16) */
+  .typing-indicator {
+    align-self: flex-start;
+    background: var(--barro-elevado);
+    border-left: 3px solid rgba(253, 248, 242, 0.15);
+    border-radius: 4px 14px 14px 14px;
+    padding: 14px 17px;
+    display: none;
+    align-items: center;
+    gap: 5px;
+  }
+  .typing-indicator.visible { display: flex; }
+  .typing-indicator span {
+    width: 7px; height: 7px;
+    background: var(--arena);
+    border-radius: 50%;
+    opacity: 0.35;
+    animation: dot-bounce 0.9s infinite ease-in-out;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40%           { transform: translateY(-5px); }
+  }
+
+  form.input-area {
+    display: flex;
+    gap: 10px;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid var(--linea);
+  }
+
+  input[type="text"] {
+    flex: 1;
+    background: var(--barro-elevado);
+    border: 1px solid var(--linea);
+    border-radius: 24px;
+    padding: 12px 18px;
+    font-family: 'Sora', sans-serif;
+    font-size: 15px;
+    color: var(--arena);
+  }
+  input[type="text"]::placeholder { color: var(--texto-muted); }
+  input[type="text"]:focus {
+    outline: 2px solid var(--terracota);
+    outline-offset: 2px;
+    border-color: transparent;
+  }
+  input[type="text"]:disabled { opacity: 0.5; }
+
+  button[type="submit"] {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: none;
+    background: var(--terracota);
+    color: var(--barro);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, opacity 0.2s ease;
+  }
+  button[type="submit"]:hover:not(:disabled) { background: #d49a68; }
+  button[type="submit"]:focus-visible { outline: 2px solid var(--arena); outline-offset: 2px; }
+  button[type="submit"]:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  @media (max-width: 860px) {
+    header { padding: 20px 24px; }
+    .layout {
       flex-direction: column;
-      gap: 0;
-      background: #fff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0,0,0,.10);
+      align-items: stretch;
+      padding: 32px 24px;
+      gap: 32px;
     }
+    .fase { font-size: clamp(44px, 16vw, 72px); }
+    .nav-link { display: none; }
+    .chat-panel { min-height: 380px; }
+  }
 
-    /* ── Header ─────────────────────────────────────────── */
-    #header {
-      padding: 1.1rem 1.5rem;
-      background: #1a1a1a;
-      color: #fff;
-      font-size: .95rem;
-      font-weight: 600;
-      letter-spacing: .02em;
-    }
-    #header span {
-      opacity: .5;
-      font-weight: 400;
-      margin-left: .5rem;
-      font-size: .85rem;
-    }
-
-    /* ── Chat area ───────────────────────────────────────── */
-    #chat {
-      flex: 1;
-      min-height: 420px;
-      max-height: 560px;
-      overflow-y: auto;
-      padding: 1.5rem 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: .75rem;
-      scroll-behavior: smooth;
-    }
-
-    /* ── Bubbles ─────────────────────────────────────────── */
-    .bubble {
-      max-width: 80%;
-      padding: .7rem 1rem;
-      border-radius: 16px;
-      font-size: .92rem;
-      line-height: 1.55;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .bubble-system {
-      align-self: flex-start;
-      background: #f2f2f2;
-      color: #1a1a1a;
-      border-bottom-left-radius: 4px;
-    }
-    .bubble-user {
-      align-self: flex-end;
-      background: #1a1a1a;
-      color: #fff;
-      border-bottom-right-radius: 4px;
-    }
-    .bubble-error {
-      align-self: flex-start;
-      background: #fff0f0;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
-      border-bottom-left-radius: 4px;
-    }
-
-    /* ── Typing indicator ───────────────────────────────── */
-    #typing {
-      align-self: flex-start;
-      display: none;
-      padding: .6rem .9rem;
-      background: #f2f2f2;
-      border-radius: 16px;
-      border-bottom-left-radius: 4px;
-      gap: 4px;
-    }
-    #typing.visible { display: flex; align-items: center; }
-    #typing span {
-      width: 7px; height: 7px;
-      background: #999;
-      border-radius: 50%;
-      animation: bounce .9s infinite ease-in-out;
-    }
-    #typing span:nth-child(2) { animation-delay: .15s; }
-    #typing span:nth-child(3) { animation-delay: .30s; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: translateY(0); }
-      40%           { transform: translateY(-6px); }
-    }
-
-    /* ── Conversation closed ────────────────────────────── */
-    #closed-notice {
-      display: none;
-      align-self: center;
-      margin-top: .5rem;
-      font-size: .8rem;
-      color: #9ca3af;
-      letter-spacing: .03em;
-    }
-    #closed-notice.visible { display: block; }
-
-    /* ── Input area ─────────────────────────────────────── */
-    #input-area {
-      display: flex;
-      align-items: flex-end;
-      gap: .6rem;
-      padding: 1rem 1.25rem;
-      border-top: 1px solid #e5e5e5;
-      background: #fff;
-    }
-    #input {
-      flex: 1;
-      resize: none;
-      font-family: inherit;
-      font-size: .92rem;
-      line-height: 1.5;
-      padding: .65rem .9rem;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      outline: none;
-      max-height: 120px;
-      overflow-y: auto;
-      transition: border-color .15s;
-    }
-    #input:focus { border-color: #6b7280; }
-    #input:disabled {
-      background: #f9fafb;
-      color: #9ca3af;
-      cursor: not-allowed;
-    }
-    #send {
-      flex-shrink: 0;
-      width: 40px; height: 40px;
-      border: none;
-      border-radius: 10px;
-      background: #1a1a1a;
-      color: #fff;
-      font-size: 1.1rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background .15s;
-    }
-    #send:hover:not(:disabled) { background: #374151; }
-    #send:disabled { background: #d1d5db; cursor: not-allowed; }
-  </style>
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
 </head>
 <body>
-<div id="app">
-  <div id="header">C4 <span>Cualificador de leads</span></div>
 
-  <div id="chat">
-    <!-- bubbles injected here -->
-    <div id="typing">
-      <span></span><span></span><span></span>
+  <header>
+    <div class="wordmark">cala<span class="punto">.</span></div>
+    <a href="#" class="nav-link">Cómo funciona</a>
+  </header>
+
+  <main class="layout">
+    <div class="hero">
+      <div class="fases" id="fases-group" role="group" aria-label="Estado de la conversación: fase actual Habla">
+        <h1 class="sr-only">cala — Habla, filtra, reúnete</h1>
+        <span class="fase activa" data-phase="habla"   aria-hidden="true">Habla</span>
+        <span class="fase"        data-phase="filtra"  aria-hidden="true">Filtra</span>
+        <span class="fase"        data-phase="reunete" aria-hidden="true">Reúnete</span>
+      </div>
+      <p class="intro">Cala habla con cada lead que llega, hace las preguntas que normalmente haría tu equipo, y solo pasa adelante lo que tiene sentido agendar.</p>
     </div>
-    <div id="closed-notice">— Conversación finalizada —</div>
-  </div>
 
-  <div id="input-area">
-    <textarea id="input" rows="1" placeholder="Escribe tu mensaje..."></textarea>
-    <button id="send" title="Enviar">&#10148;</button>
-  </div>
-</div>
+    <div class="chat-panel">
+      <div class="messages" id="messages" aria-live="polite" aria-relevant="additions">
+        <div class="msg cala">Hola. Cuéntame en qué trabaja tu empresa y qué estáis buscando.</div>
+        <div class="typing-indicator" id="typing" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <form class="input-area" id="input-form">
+        <input type="text" id="user-input" placeholder="Escribe aquí..." autocomplete="off" aria-label="Mensaje">
+        <button type="submit" aria-label="Enviar">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M3.5 9H14.5M9.5 4L14.5 9L9.5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </main>
 
 <script>
   // ── State ────────────────────────────────────────────────
-  const history = [];        // {role, content} — full history sent to backend
-  let   ended   = false;
+  const history = [];   // [{role, content}] — full history sent to backend
+  let ended = false;
 
   // ── DOM refs ─────────────────────────────────────────────
-  const chat        = document.getElementById('chat');
+  const messagesEl  = document.getElementById('messages');
   const typingEl    = document.getElementById('typing');
-  const closedEl    = document.getElementById('closed-notice');
-  const inputEl     = document.getElementById('input');
-  const sendBtn     = document.getElementById('send');
+  const form        = document.getElementById('input-form');
+  const input       = document.getElementById('user-input');
+  const submitBtn   = form.querySelector('button[type="submit"]');
+  const fasesGroup  = document.getElementById('fases-group');
+  const faseEls = {
+    habla:   document.querySelector('[data-phase="habla"]'),
+    filtra:  document.querySelector('[data-phase="filtra"]'),
+    reunete: document.querySelector('[data-phase="reunete"]'),
+  };
+  const orden = ['habla', 'filtra', 'reunete'];
+
+  const FASE_LABELS = {
+    habla:   'Habla',
+    filtra:  'Filtra',
+    reunete: 'Reúnete',
+  };
+
+  // Etiquetas textuales para accesibilidad de daltonismo (#8)
+  const NIVEL_LABELS = {
+    caliente:         'Encaje alto',
+    templado:         'Encaje parcial',
+    fuera_de_alcance: 'Fuera de alcance',
+  };
 
   // ── Helpers ──────────────────────────────────────────────
-  function addBubble(text, role) {
-    // Insert before the typing indicator so order is always correct
-    const div = document.createElement('div');
-    div.className = `bubble bubble-${role}`;
-    div.textContent = text;
-    chat.insertBefore(div, typingEl);
-    scrollToBottom();
+  function nivelClase(nivel) {
+    return nivel === 'fuera_de_alcance' ? 'fuera' : nivel;
   }
 
-  function scrollToBottom() {
-    chat.scrollTop = chat.scrollHeight;
+  function addMessage(texto, who, nivel) {
+    const div = document.createElement('div');
+    div.className = `msg ${who}`;
+    if (nivel) div.classList.add(`nivel-${nivelClase(nivel)}`);
+    div.textContent = texto;
+
+    // Etiqueta textual visible para usuarios con daltonismo (#8)
+    if (nivel && NIVEL_LABELS[nivel]) {
+      const badge = document.createElement('span');
+      badge.className = 'nivel-label';
+      badge.textContent = NIVEL_LABELS[nivel];
+      div.appendChild(badge);
+    }
+
+    // Insertar antes del indicador de escritura para mantener el orden correcto
+    messagesEl.insertBefore(div, typingEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   function setTyping(show) {
     typingEl.classList.toggle('visible', show);
-    scrollToBottom();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function setFase(faseActiva, nivel) {
+    const idx = orden.indexOf(faseActiva);
+    orden.forEach((key, i) => {
+      const el = faseEls[key];
+      el.classList.remove('activa', 'completada', 'nivel-caliente', 'nivel-templado', 'nivel-fuera');
+      if (i < idx) el.classList.add('completada');
+      if (i === idx) {
+        el.classList.add('activa');
+        if (nivel) el.classList.add(`nivel-${nivelClase(nivel)}`);
+      }
+    });
+    // Anunciar cambio de fase a lectores de pantalla (#9)
+    fasesGroup.setAttribute('aria-label',
+      `Estado de la conversación: fase actual ${FASE_LABELS[faseActiva]}`);
   }
 
   function setInputEnabled(enabled) {
-    inputEl.disabled = !enabled;
-    sendBtn.disabled = !enabled;
-    if (enabled) inputEl.focus();
+    input.disabled = !enabled;
+    submitBtn.disabled = !enabled;
+    if (enabled) input.focus();
   }
 
-  function endConversation() {
+  function endConversation(nivel) {
     ended = true;
     setInputEnabled(false);
-    closedEl.classList.add('visible');
-    scrollToBottom();
+    input.placeholder = 'Conversación cerrada';
+    setFase('reunete', nivel);
   }
 
-  // ── Auto-grow textarea ───────────────────────────────────
-  inputEl.addEventListener('input', () => {
-    inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
-  });
-
-  // ── Send ─────────────────────────────────────────────────
+  // ── Envío y llamada al backend ────────────────────────────
   async function send() {
-    const text = inputEl.value.trim();
+    const text = input.value.trim();
     if (!text || ended) return;
 
-    // Show user bubble
-    addBubble(text, 'user');
+    addMessage(text, 'user');
     history.push({ role: 'user', content: text });
-
-    inputEl.value = '';
-    inputEl.style.height = 'auto';
+    input.value = '';
     setInputEnabled(false);
     setTyping(true);
 
@@ -260,59 +409,58 @@
         body: JSON.stringify({ messages: history }),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-
       setTyping(false);
-      addBubble(data.reply, 'system');
 
-      // Pre-filter redirect (greeting, empty): don't close — invite the lead to continue.
-      // The greeting/empty message is removed from history so the next real message starts clean.
+      // Pre-filter: respuesta visible, pero gestionamos el flujo antes de cerrar
       if (data.pre_filter?.passed === false) {
+        addMessage(data.reply, 'cala');
         const reason = data.pre_filter.reason;
         if (reason === 'greeting_only' || reason === 'empty_message') {
-          history.pop(); // discard the non-starter user message
+          // No contar este turno en el historial — dejar que el lead reintente
+          history.pop();
           setInputEnabled(true);
           return;
         }
-        // spam / off_topic: conversation ends
-        endConversation();
+        // spam / off_topic: cerrar sin nivel de cualificación
+        endConversation(null);
         return;
       }
 
-      // Store full JSON as assistant turn (backend needs it for clarification counting)
+      const nivel = data?.resolution?.nivel;
+      const isFinal = nivel && nivel !== 'pendiente_clarificacion';
+
+      // Mostrar reply con color de nivel solo en mensajes de cierre (#8)
+      addMessage(data.reply, 'cala', isFinal ? nivel : null);
+
+      // El backend necesita el JSON completo como turno de asistente
       history.push({ role: 'assistant', content: JSON.stringify(data) });
 
-      const nivel = data?.resolution?.nivel;
-      if (nivel !== 'pendiente_clarificacion') {
-        endConversation();
+      if (isFinal) {
+        endConversation(nivel);
       } else {
+        // Conversación activa: avanzar a fase "Filtra"
+        setFase('filtra');
         setInputEnabled(true);
       }
     } catch (err) {
       setTyping(false);
-      addBubble('Ha ocurrido un error al conectar con el servidor. Por favor, inténtalo de nuevo.', 'error');
-      // Remove last user message from history so the user can retry cleanly
+      addMessage('Ha ocurrido un error al conectar. Por favor, inténtalo de nuevo.', 'error');
+      // Eliminar el último mensaje del historial para que el lead pueda reintentar
       history.pop();
       setInputEnabled(true);
     }
   }
 
-  sendBtn.addEventListener('click', send);
-  inputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
+  form.addEventListener('submit', (e) => { e.preventDefault(); send(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
 
-  // ── Initial welcome ──────────────────────────────────────
-  // Pure UI — does not go through backend, not added to history
-  addBubble('¡Hola! Cuéntanos en qué podemos ayudarte y cómo podemos colaborar.', 'system');
-  inputEl.focus();
+  input.focus();
 </script>
+
 </body>
 </html>
