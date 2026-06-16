@@ -1,4 +1,4 @@
-# C4 — Lead Qualifier
+# Lead Qualifier
 
 Cualificador de leads conversacional para consultora boutique de transformación digital.
 Hermano de [Yema](../yema) (generador de briefs). Portfolio técnico #3.
