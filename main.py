@@ -18,6 +18,7 @@ def index():
 
 
 @app.get("/health")
+@app.head("/health", include_in_schema=False)
 def health():
     return {"status": "ok", "service": "c4", "version": "1.0.0"}
 
