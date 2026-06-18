@@ -24,14 +24,14 @@ uvicorn main:app --port 8001 --reload
 
 Abre `http://localhost:8001` — frontend y backend servidos por el mismo proceso.
 
-## Deploy en Render
+## Deploy en Koyeb
 
-1. Conecta el repo en [render.com](https://render.com) → New Web Service
-2. Render detecta `render.yaml` automáticamente
+1. Conecta el repo en [koyeb.com](https://koyeb.com) → New App → GitHub
+2. Koyeb detecta `koyeb.yaml` automáticamente
 3. Añade `ANTHROPIC_API_KEY` en el dashboard (Environment → Add variable)
 4. Deploy
 
-El `render.yaml` configura el comando correcto (`--host 0.0.0.0 --port $PORT`). No usar `--port 8001` en producción — Render asigna su propio puerto vía `$PORT`.
+URL de producción: [URL obtenida tras el deploy]
 
 ## Endpoints
 
