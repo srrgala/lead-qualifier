@@ -7,7 +7,7 @@ Cualificador de leads conversacional para consultora boutique de transformación
 - **FastAPI** · **Pydantic v2** · **anthropic SDK** (streaming)
 - Frontend: vanilla HTML/CSS/JS (servido por el mismo proceso FastAPI)
 - Modelo: `claude-sonnet-4-6`
-- Puerto: `8001`
+- Puerto local: `8001`
 
 ## Instalación
 
@@ -28,10 +28,10 @@ Abre `http://localhost:8001` — frontend y backend servidos por el mismo proces
 
 1. Conecta el repo en [render.com](https://render.com) → New Web Service
 2. Render detecta `render.yaml` automáticamente
-3. Añade la variable de entorno `ANTHROPIC_API_KEY` en el dashboard (Environment → Add variable)
+3. Añade `ANTHROPIC_API_KEY` en el dashboard (Environment → Add variable)
 4. Deploy
 
-El `render.yaml` ya configura el comando correcto (`--host 0.0.0.0 --port $PORT`). No uses `--port 8001` en producción — Render asigna su propio puerto vía `$PORT`.
+El `render.yaml` configura el comando correcto (`--host 0.0.0.0 --port $PORT`). No usar `--port 8001` en producción — Render asigna su propio puerto vía `$PORT`.
 
 ## Endpoints
 
