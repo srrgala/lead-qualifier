@@ -68,6 +68,12 @@ PASO E — Fit = "si" pero Authority o Timeline (o ambos) siguen siendo "descono
   (caliente es imposible), clasifica como templado directamente sin preguntar más. FIN.
 
 Cierres de copy:
+• caliente:    cierra declarando el siguiente paso desde la empresa, sin preguntar.
+               El equipo se pondrá en contacto en las próximas horas para agendar.
+               No hagas preguntas. No pidas confirmación. Declara la acción.
+• templado:    cierra agradeciendo la conversación y declarando que el equipo
+               se pondrá en contacto en 24-48 horas para explorar el encaje.
+               No hagas preguntas. No pidas confirmación. Declara la acción.
 • sin_fit:     cierre claro, sin ambigüedad, "no es lo que ofrecemos"
 • no_aclarado: cierre que invita a contacto directo, sin sonar a rechazo
 

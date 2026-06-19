@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 from typing import Any
 from anthropic import AsyncAnthropic
-from models import Message
+from pydantic import ValidationError
+from models import Message, Analysis, Resolution
 
 client = AsyncAnthropic()
 
@@ -79,12 +80,15 @@ def pre_filter(message: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# System prompt
+# System prompt — cargado una vez, nunca cambia entre requests
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT: str = (
     Path(__file__).parent / "prompts" / "system_prompt.txt"
 ).read_text(encoding="utf-8")
+
+# Lista con cache_control: la parte fija del sistema se cachea desde el primer request.
+_SYSTEM_WITH_CACHE = [{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
 
 
 # ---------------------------------------------------------------------------
@@ -123,29 +127,71 @@ def _strip_json(text: str) -> str:
     return text.strip()
 
 
-async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
-    fit_clarifications = _count_fit_clarification_attempts(messages)
-    system = _SYSTEM_PROMPT + (
-        f"\n\nCONTEXTO DE TURNO:"
-        f"\n  turn_actual = {turn}"
-        f"\n  intentos_clarificacion_fit_previos = {fit_clarifications}"
-        f"\n  cap_turnos = {CAP_TURNS}"
-        f"\n(Si turn_actual >= cap_turnos y Fit=si, clasifica como templado inmediatamente.)"
+def _build_messages(messages: list[Message], turn: int, fit_clarifications: int) -> list[dict]:
+    """
+    Construye la lista de mensajes para la API:
+
+    - Inyecta el contexto de turno (dinámico) en el último mensaje de usuario,
+      manteniendo el system prompt completamente estático y cacheado.
+    - Añade cache_control al penúltimo mensaje para que el historial estable
+      se cachee entre turnos (el breakpoint avanza con la conversación).
+    """
+    turn_prefix = (
+        f"[CONTEXTO DE TURNO: turn_actual={turn} | "
+        f"intentos_clarificacion_fit_previos={fit_clarifications} | "
+        f"cap_turnos={CAP_TURNS}]\n"
+        f"(Si turn_actual >= cap_turnos y Fit=si, clasifica como templado inmediatamente.)\n\n"
     )
 
-    anthropic_messages = [{"role": m.role, "content": m.content} for m in messages]
+    last_idx = len(messages) - 1
+    # El penúltimo mensaje es el último estable — se cachea.
+    # Si solo hay un mensaje, no hay historial previo que cachear.
+    cache_idx = last_idx - 1 if last_idx > 0 else None
+
+    result = []
+    for i, m in enumerate(messages):
+        if i == last_idx and m.role == "user":
+            # Último mensaje de usuario: inyectar contexto de turno, sin caché (contenido nuevo).
+            result.append({"role": m.role, "content": turn_prefix + m.content})
+        elif i == cache_idx:
+            # Penúltimo mensaje: marcar para caché (historial estable).
+            result.append({
+                "role": m.role,
+                "content": [{"type": "text", "text": m.content, "cache_control": {"type": "ephemeral"}}],
+            })
+        else:
+            result.append({"role": m.role, "content": m.content})
+
+    return result
+
+
+async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
+    fit_clarifications = _count_fit_clarification_attempts(messages)
+    anthropic_messages = _build_messages(messages, turn, fit_clarifications)
 
     full_text = ""
     async with client.messages.stream(
         model="claude-sonnet-4-6",
         max_tokens=1024,
-        system=system,
+        system=_SYSTEM_WITH_CACHE,
         messages=anthropic_messages,
     ) as stream:
         async for chunk in stream.text_stream:
             full_text += chunk
 
     result = json.loads(_strip_json(full_text))
+
     if "reply" not in result:
         raise ValueError(f"LLM response missing 'reply' field: {full_text[:200]}")
+
+    # Validar sub-objetos con los modelos Pydantic — falla rápido si el LLM
+    # devuelve campos inválidos o ausentes (literales fuera de rango, tipos incorrectos).
+    try:
+        if result.get("analysis"):
+            result["analysis"] = Analysis(**result["analysis"]).model_dump()
+        if result.get("resolution"):
+            result["resolution"] = Resolution(**result["resolution"]).model_dump()
+    except ValidationError as exc:
+        raise ValueError(f"LLM response failed schema validation: {exc}") from exc
+
     return result
