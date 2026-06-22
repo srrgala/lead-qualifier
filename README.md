@@ -44,6 +44,14 @@ El cap de Authority/Timeline es distinto en naturaleza: Fit ya está confirmado,
 
 El cap global de 6 turnos es una red de seguridad para casos que ninguno de los dos caps específicos captura. Con 2+2 intentos máximos por fase, en condiciones normales la conversación termina antes de llegar a 6 turnos. El cap global garantiza que ninguna conversación escape al control del sistema.
 
+### Tool use en lugar de JSON en texto
+
+La alternativa más simple a tool use es instruir al modelo a devolver JSON en el mensaje de texto y parsearlo con `json.loads()`. El problema: el modelo puede desviarse del schema (campos ausentes, literales fuera de rango, markdown alrededor del JSON), y el error aparece aguas abajo cuando ya se intentó usar el dato.
+
+Con tool use nativo, el modelo no puede devolver una estructura diferente a la definida — la API rechaza la respuesta antes de que llegue al servidor. El schema se define una vez en la definición del tool y vale como contrato entre el modelo y el código: no hay `json.loads()`, no hay regex para limpiar markdown, y la validación Pydantic opera sobre un dict ya tipado, no sobre texto libre. Cualquier fallo de schema es estructural y ocurre en el momento de la llamada, no después.
+
+`tool_choice={"type": "any"}` fuerza al modelo a invocar siempre una de las dos tools (`qualify_lead` o `request_clarification`), eliminando el caso en que el modelo devuelva texto libre cuando no sabe qué hacer.
+
 ### Sonnet en lugar de Haiku
 
 La clasificación FAT requiere juicio sobre lenguaje hedgeado y señales indirectas. Un lead que dice "estamos explorando opciones para el año que viene" necesita clasificarse como Timeline=exploración, no Timeline=meses. Otro que dice "necesitamos tenerlo antes de que empiece la campaña" apunta a semanas aunque no dé una fecha. La diferencia importa: un falso `caliente` envía un lead de baja calidad al equipo comercial; un falso `fuera_de_alcance` elimina una oportunidad real.
@@ -54,7 +62,7 @@ Haiku maneja bien las declaraciones explícitas pero falla en la ambigüedad y e
 
 ## Stack
 
-- **FastAPI** · **Pydantic v2** · **anthropic SDK** (streaming)
+- **FastAPI** · **Pydantic v2** · **anthropic SDK** (tool use)
 - Frontend: vanilla HTML/CSS/JS (servido por el mismo proceso FastAPI)
 - Modelo: `claude-sonnet-4-6`
 - Puerto local: `8001`

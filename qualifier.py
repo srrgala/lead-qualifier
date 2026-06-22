@@ -33,6 +33,130 @@ _OFF_TOPIC_RE = re.compile(
     re.IGNORECASE,
 )
 
+# ---------------------------------------------------------------------------
+# Tool definitions — el modelo siempre invoca una de las dos (tool_choice=any)
+# ---------------------------------------------------------------------------
+
+_TOOLS: list[dict] = [
+    {
+        "name": "qualify_lead",
+        "description": (
+            "Registra el análisis FAT completo y emite la clasificación final del lead. "
+            "Úsala para cualquier resultado: caliente, templado, fuera_de_alcance, "
+            "o pendiente_clarificacion cuando ya conoces el fit y necesitas aclarar "
+            "authority o timeline."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "fit": {
+                    "type": "string",
+                    "enum": ["si", "no", "pendiente"],
+                    "description": "Encaje del lead con el catálogo de servicios.",
+                },
+                "fit_reason": {
+                    "type": "string",
+                    "description": "Explicación concisa del fit.",
+                },
+                "authority": {
+                    "type": "string",
+                    "enum": ["si", "no", "posiblemente", "desconocido"],
+                    "description": "Capacidad de decisión del interlocutor.",
+                },
+                "authority_reason": {
+                    "type": "string",
+                    "description": "Explicación concisa de la authority.",
+                },
+                "timeline": {
+                    "type": "string",
+                    "enum": ["semanas", "exploración", "sin horizonte", "desconocido"],
+                    "description": "Horizonte temporal del proyecto.",
+                },
+                "timeline_reason": {
+                    "type": "string",
+                    "description": "Explicación concisa del timeline.",
+                },
+                "senal_budget": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "description": "Señal de presupuesto si se menciona espontáneamente; null si no.",
+                },
+                "nivel": {
+                    "type": "string",
+                    "enum": [
+                        "caliente",
+                        "templado",
+                        "pendiente_clarificacion",
+                        "fuera_de_alcance",
+                    ],
+                    "description": "Nivel de cualificación resultante.",
+                },
+                "subtipo": {
+                    "anyOf": [
+                        {"type": "string", "enum": ["sin_fit", "no_aclarado"]},
+                        {"type": "null"},
+                    ],
+                    "description": "Subtipo de fuera_de_alcance; null en todos los demás casos.",
+                },
+                "dimensiones_faltantes": {
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": ["authority", "timeline"],
+                            },
+                        },
+                        {"type": "null"},
+                    ],
+                    "description": (
+                        "Dimensiones aún desconocidas cuando nivel=pendiente_clarificacion "
+                        "por Authority/Timeline, o cuando nivel=templado con dims sin resolver. "
+                        "null para clarificación de Fit o para caliente."
+                    ),
+                },
+                "reply": {
+                    "type": "string",
+                    "description": "Mensaje visible al lead. Tono natural de negocio.",
+                },
+            },
+            "required": [
+                "fit",
+                "fit_reason",
+                "authority",
+                "authority_reason",
+                "timeline",
+                "timeline_reason",
+                "nivel",
+                "reply",
+            ],
+        },
+    },
+    {
+        "name": "request_clarification",
+        "description": (
+            "Solicita una única pregunta de clarificación al lead sobre Fit. "
+            "Úsala SOLO cuando fit='pendiente' y no has agotado los intentos de clarificación. "
+            "Para clarificar authority o timeline (cuando fit=si), usa qualify_lead "
+            "con nivel=pendiente_clarificacion."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "missing_info": {
+                    "type": "string",
+                    "enum": ["fit", "authority", "timeline"],
+                    "description": "Dimensión que falta aclarar.",
+                },
+                "reply": {
+                    "type": "string",
+                    "description": "Pregunta de clarificación. Una sola pregunta, tono natural.",
+                },
+            },
+            "required": ["missing_info", "reply"],
+        },
+    },
+]
+
 
 def pre_filter(message: str) -> dict:
     msg = message.strip()
@@ -119,14 +243,6 @@ def _count_fit_clarification_attempts(messages: list[Message]) -> int:
     return count
 
 
-def _strip_json(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
-    return text.strip()
-
-
 def _build_messages(messages: list[Message], turn: int, fit_clarifications: int) -> list[dict]:
     """
     Construye la lista de mensajes para la API:
@@ -169,29 +285,86 @@ async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
     fit_clarifications = _count_fit_clarification_attempts(messages)
     anthropic_messages = _build_messages(messages, turn, fit_clarifications)
 
-    full_text = ""
-    async with client.messages.stream(
+    response = await client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
         system=_SYSTEM_WITH_CACHE,
         messages=anthropic_messages,
-    ) as stream:
-        async for chunk in stream.text_stream:
-            full_text += chunk
+        tools=_TOOLS,
+        tool_choice={"type": "any"},
+    )
 
-    result = json.loads(_strip_json(full_text))
+    # tool_choice=any garantiza que siempre hay un bloque tool_use
+    tool_use = next(
+        (block for block in response.content if block.type == "tool_use"),
+        None,
+    )
+    if tool_use is None:
+        raise ValueError(f"LLM response contained no tool_use block: {response.content}")
 
-    if "reply" not in result:
-        raise ValueError(f"LLM response missing 'reply' field: {full_text[:200]}")
+    args = tool_use.input  # dict ya parseado por el SDK
 
-    # Validar sub-objetos con los modelos Pydantic — falla rápido si el LLM
-    # devuelve campos inválidos o ausentes (literales fuera de rango, tipos incorrectos).
-    try:
-        if result.get("analysis"):
-            result["analysis"] = Analysis(**result["analysis"]).model_dump()
-        if result.get("resolution"):
-            result["resolution"] = Resolution(**result["resolution"]).model_dump()
-    except ValidationError as exc:
-        raise ValueError(f"LLM response failed schema validation: {exc}") from exc
+    if tool_use.name == "qualify_lead":
+        try:
+            analysis = Analysis(
+                fit=args["fit"],
+                fit_reason=args["fit_reason"],
+                authority=args["authority"],
+                authority_reason=args["authority_reason"],
+                timeline=args["timeline"],
+                timeline_reason=args["timeline_reason"],
+                senal_budget=args.get("senal_budget"),
+            ).model_dump()
+            resolution = Resolution(
+                nivel=args["nivel"],
+                subtipo=args.get("subtipo"),
+                dimensiones_faltantes=args.get("dimensiones_faltantes"),
+            ).model_dump()
+        except ValidationError as exc:
+            raise ValueError(f"Tool input failed schema validation: {exc}") from exc
 
-    return result
+    else:
+        # request_clarification — solo tiene missing_info y reply.
+        # Construimos analysis/resolution con valores coherentes para mantener
+        # el contrato de respuesta y el contador de intentos de clarificación.
+        missing = args["missing_info"]
+        if missing == "fit":
+            analysis = Analysis(
+                fit="pendiente",
+                fit_reason="Se requiere más información para determinar el encaje.",
+                authority="desconocido",
+                authority_reason="No evaluado.",
+                timeline="desconocido",
+                timeline_reason="No evaluado.",
+                senal_budget=None,
+            ).model_dump()
+            resolution = Resolution(
+                nivel="pendiente_clarificacion",
+                subtipo=None,
+                dimensiones_faltantes=None,
+            ).model_dump()
+        else:
+            # missing == "authority" | "timeline"
+            analysis = Analysis(
+                fit="si",
+                fit_reason="Fit confirmado.",
+                authority="desconocido" if missing == "authority" else "desconocido",
+                authority_reason="Pendiente de aclaración." if missing == "authority" else "No evaluado.",
+                timeline="desconocido",
+                timeline_reason="Pendiente de aclaración." if missing == "timeline" else "No evaluado.",
+                senal_budget=None,
+            ).model_dump()
+            resolution = Resolution(
+                nivel="pendiente_clarificacion",
+                subtipo=None,
+                dimensiones_faltantes=[missing],
+            ).model_dump()
+
+    return {
+        "intent": "qualify_lead",
+        "turn": turn,
+        "pre_filter": {"passed": True, "reason": "passed_to_llm"},
+        "analysis": analysis,
+        "resolution": resolution,
+        "reply": args["reply"],
+    }
