@@ -216,6 +216,43 @@ _SYSTEM_WITH_CACHE = [{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": 
 
 
 # ---------------------------------------------------------------------------
+# Model routing
+# ---------------------------------------------------------------------------
+
+_MODEL_SONNET = "claude-sonnet-4-6"
+_MODEL_HAIKU = "claude-haiku-4-5-20251001"
+
+
+def _select_model(messages: list[Message]) -> str:
+    """
+    Select model based on conversation state as proxy for turn intent.
+
+    - First turn or fit not yet confirmed → Sonnet (full capacity for fit evaluation)
+    - Fit confirmed but authority/timeline still desconocido → Haiku (simpler clarification)
+    - Fit confirmed and all dims resolved → Sonnet (final classification)
+    """
+    last_assistant = next(
+        (m for m in reversed(messages) if m.role == "assistant"),
+        None,
+    )
+    if last_assistant is None:
+        return _MODEL_SONNET
+
+    analysis = _parse_assistant_json(last_assistant.content).get("analysis") or {}
+    prev_fit = analysis.get("fit")
+    prev_authority = analysis.get("authority")
+    prev_timeline = analysis.get("timeline")
+
+    if (
+        prev_fit == "si"
+        and (prev_authority == "desconocido" or prev_timeline == "desconocido")
+    ):
+        return _MODEL_HAIKU
+
+    return _MODEL_SONNET
+
+
+# ---------------------------------------------------------------------------
 # LLM call
 # ---------------------------------------------------------------------------
 
@@ -284,9 +321,10 @@ def _build_messages(messages: list[Message], turn: int, fit_clarifications: int)
 async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
     fit_clarifications = _count_fit_clarification_attempts(messages)
     anthropic_messages = _build_messages(messages, turn, fit_clarifications)
+    model = _select_model(messages)
 
     response = await client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model,
         max_tokens=1024,
         system=_SYSTEM_WITH_CACHE,
         messages=anthropic_messages,
