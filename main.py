@@ -8,7 +8,13 @@ from qualifier import pre_filter, qualify_lead
 
 load_dotenv()
 
-app = FastAPI(title="C4 — Lead Qualifier", version="1.0.0")
+app = FastAPI(
+    title="C4 — Lead Qualifier",
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
