@@ -263,6 +263,20 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
+
+  .privacy-notice {
+    margin: 10px 0 0;
+    font-size: 11px;
+    line-height: 1.55;
+    color: rgba(253, 248, 242, 0.38);
+    text-align: center;
+  }
+  .privacy-notice a {
+    color: rgba(253, 248, 242, 0.5);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .privacy-notice a:hover { color: var(--arena); }
 </style>
 </head>
 <body>
@@ -298,6 +312,12 @@
           </svg>
         </button>
       </form>
+      <p class="privacy-notice">
+        Esta conversación es procesada por un modelo de IA para evaluar el encaje con nuestro equipo.
+        El contenido se transmite al proveedor del modelo (Anthropic) y al proveedor de alojamiento (Render),
+        y no se almacena en ninguna base de datos propia.
+        Base legal: interés legítimo (Art.&nbsp;6.1.f RGPD).
+      </p>
     </div>
   </main>
 
