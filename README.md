@@ -2,6 +2,56 @@
 
 Cualificador de leads conversacional para consultora boutique de transformación digital.
 
+---
+
+## Problema de negocio
+
+Los equipos comerciales pierden tiempo cualificando leads que nunca van a convertir. El problema no es la cantidad de leads, es que el equipo no tiene información sobre fit, autoridad de decisión ni urgencia antes de invertir tiempo en una llamada. Ese tiempo tiene coste real: en una consultora boutique, las horas de ventas son escasas y no se recuperan.
+
+Este sistema actúa como primera capa de cualificación conversacional: extrae las tres dimensiones críticas (Fit, Authority, Timeline) en lenguaje natural y clasifica el lead antes de que llegue al equipo. El comercial recibe un lead etiquetado, no una conversación sin procesar.
+
+---
+
+## Decisiones técnicas
+
+### Lógica FAT jerárquica, no scoring plano
+
+El orden Fit → Authority → Timeline no es arbitrario. Fit es una condición de salida: si el problema del lead no encaja con el catálogo, Authority y Timeline son irrelevantes — preguntar por capacidad de decisión a alguien cuya necesidad no tiene solución en el catálogo no aporta nada. Dentro de Fit=Sí, Authority determina si la conversación puede producir una decisión: un lead con fit perfecto pero sin autoridad necesita involucrar a otra persona antes de avanzar. Timeline viene último porque solo importa cuando los dos primeros están resueltos — distingue entre un comprador motivado con fecha y uno que "está explorando".
+
+Un modelo de scoring plano agregaría puntos de las tres dimensiones y produciría un score compuesto. El problema es que un lead con Timeline excelente pero sin Fit acumularía puntos y generaría falsos positivos. La lógica jerárquica elimina esa posibilidad: cada dimensión es un gate, no un sumando.
+
+### Stateless: el cliente envía el historial completo
+
+El servidor no guarda estado de conversación. En cada llamada, el cliente envía el historial completo y el servidor lo procesa desde cero.
+
+La alternativa — sesiones server-side — requiere almacenamiento (Redis, base de datos), lógica de expiración, gestión de IDs de sesión y cleanup. Para una conversación acotada a 6 turnos que cabe cómodamente en un payload JSON, esa infraestructura no añade valor. El cliente (navegador) ya tiene el historial; guardarlo también en el servidor es duplicar sin beneficio.
+
+El diseño stateless también hace que cada request sea autónomo: puede auditarse en aislamiento, reproducirse exactamente con el mismo payload y escalarse horizontalmente sin coordinación entre instancias.
+
+### Pre-filter determinista antes del LLM
+
+Saludos, mensajes vacíos y contenido off-topic se resuelven con regex antes de llegar al LLM. El pre-filter no es una optimización menor: cada mensaje que pasa al LLM tiene coste de latencia y tokens. Un "hola" o un mensaje en blanco no necesitan clasificación FAT — necesitan una respuesta inmediata y predecible.
+
+El pre-filter también hace el sistema más estable en los bordes. Una respuesta a un saludo siempre es la misma, independientemente de la versión del modelo o de cambios en el prompt. El LLM se reserva para los casos donde la comprensión del lenguaje natural añade valor real: mensajes con contenido que requiere juicio sobre fit, autoridad y urgencia.
+
+### Caps de terminación independientes
+
+Hay tres mecanismos de terminación que operan por separado: 2 intentos para clarificar Fit, 2 intentos para clarificar Authority/Timeline, y un cap global de 6 turnos.
+
+El cap de Fit resuelve un problema concreto: un lead que no puede explicar qué necesita después de dos preguntas casi con certeza no tiene un caso de uso claro. Seguir preguntando degrada la conversación sin mejorar la señal. El resultado es `fuera_de_alcance / no_aclarado` — no `sin_fit`, porque el problema no es incompatibilidad sino falta de información.
+
+El cap de Authority/Timeline es distinto en naturaleza: Fit ya está confirmado, el lead merece esfuerzo. Pero si después de dos turnos estas dimensiones siguen sin resolverse, el canal de chat no es el medio adecuado para extraerlas — una llamada lo hará mejor. El resultado es `templado` con las dimensiones faltantes señaladas, para que el comercial sepa qué preguntar.
+
+El cap global de 6 turnos es una red de seguridad para casos que ninguno de los dos caps específicos captura. Con 2+2 intentos máximos por fase, en condiciones normales la conversación termina antes de llegar a 6 turnos. El cap global garantiza que ninguna conversación escape al control del sistema.
+
+### Sonnet en lugar de Haiku
+
+La clasificación FAT requiere juicio sobre lenguaje hedgeado y señales indirectas. Un lead que dice "estamos explorando opciones para el año que viene" necesita clasificarse como Timeline=exploración, no Timeline=meses. Otro que dice "necesitamos tenerlo antes de que empiece la campaña" apunta a semanas aunque no dé una fecha. La diferencia importa: un falso `caliente` envía un lead de baja calidad al equipo comercial; un falso `fuera_de_alcance` elimina una oportunidad real.
+
+Haiku maneja bien las declaraciones explícitas pero falla en la ambigüedad y el lenguaje indirecto a una tasa que sí importa en un contexto de cualificación. El coste incremental de Sonnet sobre una conversación acotada a 6 turnos es pequeño. El coste de una clasificación errónea — tiempo de ventas desperdiciado o lead perdido — no lo es.
+
+---
+
 ## Stack
 
 - **FastAPI** · **Pydantic v2** · **anthropic SDK** (streaming)
