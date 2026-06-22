@@ -52,11 +52,18 @@ Con tool use nativo, el modelo no puede devolver una estructura diferente a la d
 
 `tool_choice={"type": "any"}` fuerza al modelo a invocar siempre una de las dos tools (`qualify_lead` o `request_clarification`), eliminando el caso en que el modelo devuelva texto libre cuando no sabe qué hacer.
 
-### Sonnet en lugar de Haiku
+### Routing de modelo por intención de turno
 
-La clasificación FAT requiere juicio sobre lenguaje hedgeado y señales indirectas. Un lead que dice "estamos explorando opciones para el año que viene" necesita clasificarse como Timeline=exploración, no Timeline=meses. Otro que dice "necesitamos tenerlo antes de que empiece la campaña" apunta a semanas aunque no dé una fecha. La diferencia importa: un falso `caliente` envía un lead de baja calidad al equipo comercial; un falso `fuera_de_alcance` elimina una oportunidad real.
+No todos los turnos requieren el mismo nivel de razonamiento. El sistema selecciona el modelo antes de cada llamada a la API usando el estado previo de la conversación como señal proxy.
 
-Haiku maneja bien las declaraciones explícitas pero falla en la ambigüedad y el lenguaje indirecto a una tasa que sí importa en un contexto de cualificación. El coste incremental de Sonnet sobre una conversación acotada a 6 turnos es pequeño. El coste de una clasificación errónea — tiempo de ventas desperdiciado o lead perdido — no lo es.
+**Sonnet** se usa cuando el turno requiere juicio complejo:
+- Primer turno: no hay historial, el modelo evalúa fit desde cero con lenguaje potencialmente ambiguo.
+- Fit aún pendiente: determinar si una necesidad encaja con el catálogo requiere interpretar lenguaje hedgeado e indirecto. Un lead que dice "queremos algo con datos" necesita más análisis que uno que dice "necesitamos automatizar la facturación".
+- Clasificación final: cuando todas las dimensiones están resueltas, el modelo emite el resultado definitivo.
+
+**Haiku** se usa en turnos de clarificación intermedia sobre Authority o Timeline, cuando fit ya está confirmado. En esos turnos el modelo solo necesita formular una pregunta sobre una dimensión ya acotada — no evalúa fit ni emite clasificación final. Haiku es suficiente para esa tarea y reduce el coste de los turnos intermedios.
+
+La señal de routing es el último mensaje del asistente en el historial: si `analysis.fit == "si"` y al menos uno de `authority` o `timeline` es `"desconocido"`, se usa Haiku. En cualquier otro caso, Sonnet.
 
 ---
 
@@ -64,7 +71,7 @@ Haiku maneja bien las declaraciones explícitas pero falla en la ambigüedad y e
 
 - **FastAPI** · **Pydantic v2** · **anthropic SDK** (tool use)
 - Frontend: vanilla HTML/CSS/JS (servido por el mismo proceso FastAPI)
-- Modelo: `claude-sonnet-4-6`
+- Modelos: `claude-sonnet-4-6` (evaluación de fit, clasificación final) · `claude-haiku-4-5-20251001` (clarificación intermedia de Authority/Timeline)
 - Puerto local: `8001`
 
 ## Instalación
