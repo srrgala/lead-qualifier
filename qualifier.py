@@ -331,6 +331,13 @@ async def qualify_lead(messages: list[Message], turn: int) -> dict[str, Any]:
         tools=_TOOLS,
         tool_choice={"type": "any"},
     )
+    print(json.dumps({
+        "proyecto": "cala",
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+        "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+    }))
 
     # tool_choice=any garantiza que siempre hay un bloque tool_use
     tool_use = next(

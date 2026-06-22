@@ -1,10 +1,13 @@
 from __future__ import annotations
 import logging
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -17,8 +20,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
-
-load_dotenv()
 
 app = FastAPI(
     title="C4 — Lead Qualifier",
