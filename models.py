@@ -1,15 +1,15 @@
 from __future__ import annotations
 from typing import List, Literal, Optional
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Message(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(..., min_length=1, max_length=2000)
 
 
 class QualifyRequest(BaseModel):
-    messages: List[Message]
+    messages: List[Message] = Field(..., min_length=1, max_length=20)
 
     @field_validator("messages")
     @classmethod

@@ -68,14 +68,9 @@ def test_health():
 
 
 def test_prefilter_empty_message():
+    # content vacío rechazado por Pydantic (min_length=1) antes de llegar al pre-filter
     r = client.post("/qualify", json={"messages": [_msg("")]})
-    assert r.status_code == 200
-    data = r.json()
-    assert data["pre_filter"]["passed"] is False
-    assert data["pre_filter"]["reason"] == "empty_message"
-    assert data["analysis"] is None
-    assert data["resolution"] is None
-    assert data["reply"]
+    assert r.status_code == 422
 
 
 def test_prefilter_greeting_only():
